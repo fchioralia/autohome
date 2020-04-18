@@ -1,0 +1,184 @@
+from django.shortcuts import render
+from django.http import Http404
+#from django.urls import reverse
+from django.http import HttpResponse, HttpResponseRedirect
+from django.http import JsonResponse
+#from django.template import loader
+#from background_task import background
+import sys
+import RPi.GPIO as GPIO
+
+from .models import Sprinkler, Sensor, Scheduler
+
+def index(request):
+    list_sprinklers = Sprinkler.objects.order_by('sprinkler_gpio')
+    list_sensors = Sensor.objects.order_by('sensor_gpio')
+#    template = loader.get_template('sprinklers/index.html')
+    context = {
+        'list_sprinklers': list_sprinklers,
+        'list_sensors': list_sensors,
+    }
+    return render(request, 'sprinklers/index.html', context )
+#    output = ', '.join([q.sprinkler_name for q in list_sprinklers])
+#    return HttpResponse(output)
+
+
+def get_scheduler_data(request, sprinkler_gpio):
+    try:
+        scheduler = Scheduler.objects.get(scheduler_sprinkler_gpio__exact=sprinkler_gpio)
+    except Scheduler.DoesNotExist:
+        raise Http404("No sprinkler found with gpio= %d!" % (scheduler_sprinkler_gpio))
+    return JsonResponse({"scheduler_sprinkler_gpio": scheduler.scheduler_sprinkler_gpio,
+        "scheduler_start_time": scheduler.scheduler_start_time,
+        "scheduler_stop_time": scheduler.scheduler_stop_time}, status=200)
+
+def set_scheduler_data(request, sprinkler_gpio):
+    try:
+        scheduler = Scheduler.objects.get(scheduler_sprinkler_gpio__exact=sprinkler_gpio)
+    except Scheduler.DoesNotExist:
+        Scheduler.objects.create(
+            scheduler_sprinkler_gpio = sprinkler_gpio,
+            scheduler_start_time = request.POST['scheduler_start_time'],
+            scheduler_stop_time = request.POST['scheduler_stop_time']
+        )
+#        scheduler.save()
+#        raise Http404("No sprinkler found with gpio= %d!" % (sprinkler_gpio))
+    else:
+        scheduler.scheduler_start_time = request.POST['scheduler_start_time']
+        scheduler.scheduler_stop_time = request.POST['scheduler_stop_time']
+        scheduler.save()
+        # Always return an HttpResponseRedirect after successfully dealing
+        # with POST data. This prevents data from being posted twice if a
+        # user hits the Back button.
+    return JsonResponse({"sprinkler_gpio": sprinkler_gpio}, status=200)
+
+
+def get_spr_status(request, sprinkler_gpio):
+    try:
+        sprinkler = Sprinkler.objects.get(sprinkler_gpio__exact=sprinkler_gpio)
+    except Sprinkler.DoesNotExist:
+        raise Http404("No sprinkler found with gpio= %d!" % (sprinkler_gpio))
+    return render(request, 'sprinklers/sprinkler.html', {'sprinkler': sprinkler})
+
+def get_sensor_status(request, sensor_gpio):
+    try:
+        sprinkler = Sensor.objects.get(sensor_gpio__exact=sensor_gpio)
+    except Sensor.DoesNotExist:
+        raise Http404("No sensor found with gpio= %d!" % (sensor_gpio))
+    return render(request, 'sprinklers/sensor.html', {'sensor': sensor})
+
+def get_sensor_active_state(request, sensor_gpio):
+    try:
+        sprinkler = Sensor.objects.get(sensor_gpio__exact=sensor_gpio)
+    except Sensor.DoesNotExist:
+        raise Http404("No sensor found with gpio= %d!" % (sensor_gpio))
+    else:
+        reading_gpio=read_gpio(sensor_gpio, 'GPIO.IN')
+        return JsonResponse({"sensor_active_state": reading_gpio}, status=200)
+
+def change_spr_state(request, sprinkler_gpio):
+    try:
+        sprinkler = Sprinkler.objects.get(sprinkler_gpio__exact=sprinkler_gpio)
+    except Sprinkler.DoesNotExist:
+        raise Http404("No sprinkler found with gpio= %d!" % (sprinkler_gpio))
+    else:
+        if sprinkler.sprinkler_state :
+            write_gpio(sprinkler.sprinkler_gpio, 1)
+            sprinkler.sprinkler_state = False
+            sprinkler.sprinkler_active_state = False
+            sprinkler.save()
+        else:
+            sprinkler.sprinkler_state = True
+            sprinkler.save()
+    return JsonResponse({"sprinkler_gpio": sprinkler_gpio}, status=200)
+
+def change_sensor_state(request, sensor_gpio):
+    try:
+        sensor = Sensor.objects.get(sensor_gpio__exact=sensor_gpio)
+    except Sensor.DoesNotExist:
+        raise Http404("No sensor found with gpio= %d!" % (sensor_gpio))
+    else:
+        if sensor.sensor_state :
+            sensor.sensor_state = False
+            sensor.save()
+        else:
+            sensor.sensor_state = True
+            sensor.save()
+    return JsonResponse({"sensor_gpio": sensor_gpio}, status=200)
+
+''' change a state of a sprinkler '''
+def change_spr_active_state(request, sprinkler_gpio):
+    try:
+        sprinkler = Sprinkler.objects.get(sprinkler_gpio__exact=sprinkler_gpio)
+    except Sprinkler.DoesNotExist:
+        raise Http404("No sprinkler found with gpio= %d!" % (sprinkler_gpio))
+    else:
+        reading_gpio=read_gpio(sprinkler_gpio, 'GPIO.OUT')
+        if  reading_gpio == "LOW":
+            write_gpio(sprinkler_gpio, 1)
+            sprinkler.sprinkler_active_state = False
+            sprinkler.save()
+        else:
+            if  sprinkler.sprinkler_state == True :
+                write_gpio(sprinkler_gpio, 0)
+                sprinkler.sprinkler_active_state = True
+                sprinkler.save()
+    return JsonResponse({"sprinkler_gpio": sprinkler_gpio}, status=200)
+
+'''Manage input of the sensor given by first argument = gpio bcm port and mode in/out'''
+'''read the gpio at "port" number and inout is GPIO.IN or GPIO.OUT'''
+def read_gpio(port, inout):
+    if isinstance(port, int) == False:
+        raise ValueError("port should be an integer argument!")
+    if inout == "GPIO.OUT":
+        GPIO.setwarnings(False)
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(port, GPIO.OUT)
+
+        i = GPIO.input(port)
+        if i == 0:
+            return "LOW"
+        else:
+            return "HIGH"
+
+    elif inout == "GPIO.IN":
+        GPIO.setwarnings(False)
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(port, GPIO.IN)
+
+        i = GPIO.input(port)
+        if i == 0:
+            return "HIGH"
+        else:
+            return "LOW"
+
+    else:
+        raise ValueError("inout should be GPIO.IN or GPIO.OUT!")
+
+'''Manage output of the sensor given by first argument = gpio bcm out port and setstate (0 or 1)'''
+def write_gpio(outport, setstate):
+    if isinstance(outport, int) == False:
+        raise ValueError("port should be an integer argument!")
+
+    GPIO.setwarnings(False)
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(outport, GPIO.OUT)
+    if setstate == 0:
+        GPIO.output(outport, GPIO.LOW)
+        return "LOW"
+    elif setstate == 1:
+        GPIO.output(outport, GPIO.HIGH)
+        return "HIGH"
+    else:
+        raise ValueError("setstate should be 0 or 1!")
+
+
+#@background(schedule=10)
+def run_sprinklers_service(self):
+    try:
+        state = read_gpio(25, 'GPIO.IN')
+#        state = write_gpio(18, 1)
+    except ValueError as exception:
+        return exception.message
+    return HttpResponse("%s" % state)
+
