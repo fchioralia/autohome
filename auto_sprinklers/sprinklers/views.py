@@ -6,6 +6,7 @@ from django.http import JsonResponse
 #from django.template import loader
 #from background_task import background
 import sys
+import os
 import RPi.GPIO as GPIO
 
 from .models import Sprinkler, Sensor, Scheduler
@@ -13,15 +14,55 @@ from .models import Sprinkler, Sensor, Scheduler
 def index(request):
     list_sprinklers = Sprinkler.objects.order_by('sprinkler_gpio')
     list_sensors = Sensor.objects.order_by('sensor_gpio')
+    service_active_autohome = get_service_active("autohome")
+    service_enabled_autohome = get_service_enabled("autohome")
 #    template = loader.get_template('sprinklers/index.html')
     context = {
         'list_sprinklers': list_sprinklers,
         'list_sensors': list_sensors,
+        'service_active_autohome': service_active_autohome,
+        'service_enabled_autohome': service_enabled_autohome,
     }
     return render(request, 'sprinklers/index.html', context )
 #    output = ', '.join([q.sprinkler_name for q in list_sprinklers])
 #    return HttpResponse(output)
 
+
+def get_service_active(service):
+    command="/bin/systemctl is-active --quiet "+service
+    status=os.system(command)
+    if status == 0:
+        return True
+    else:
+        return False
+
+def set_service_active(request, service, status):
+    command="/bin/systemctl is-active --quiet "+service
+    realstatus=os.system(command)
+    if status == "on" and realstatus != 0:
+        os.system("/bin/systemctl start "+service)
+    elif status == "off" and realstatus == 0:
+        os.system("/bin/systemctl stop "+service)
+
+    return JsonResponse({"service": service, "status": status}, status=200)
+
+def get_service_enabled(service):
+    command="/bin/systemctl is-enabled --quiet "+service
+    status=os.system(command)
+    if status == 0:
+        return True
+    else:
+        return False
+
+def set_service_enabled(request, service, status):
+    command="/bin/systemctl is-enabled --quiet "+service
+    realstatus=os.system(command)
+    if status == "on" and realstatus != 0:
+        os.system("/bin/systemctl enable "+service)
+    elif status == "off" and realstatus == 0:
+        os.system("/bin/systemctl disable "+service)
+
+    return JsonResponse({"service": service, "status": status}, status=200)
 
 def get_scheduler_data(request, sprinkler_gpio):
     try:

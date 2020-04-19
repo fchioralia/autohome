@@ -29,5 +29,7 @@ urlpatterns = [
     path('set_scheduler_data/<int:sprinkler_gpio>', views.set_scheduler_data, name='set_scheduler_data'),
     path('change_spr_state/<int:sprinkler_gpio>', views.change_spr_state, name='change_spr_state'),
     path('change_spr_active_state/<int:sprinkler_gpio>', views.change_spr_active_state, name='change_spr_active_state'),
+    path('set_service_active/<slug:service>/<slug:status>', views.set_service_active, name='set_service_active'),
+    path('set_service_enabled/<slug:service>/<slug:status>', views.set_service_enabled, name='set_service_enabled'),
     url('sensor/run/',views.run_sprinklers_service,name='run_sprinklers_service'),
 ]

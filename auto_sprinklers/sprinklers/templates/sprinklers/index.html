@@ -267,6 +267,62 @@ font-size: 100%; "
 
 </table>
 
+<table class="tg">
+  <tr>
+    <th class="tg-1wig" style="width: 100px;">Service</th>
+    <th class="tg-1wig">Enable/Disable</th>
+    <th class="tg-1wig">Running/Stopped</th>
+  </tr>
+    <tr>
+      <td class="tg-0lax">autohome</td>
+      <td class="tg-0lax">
+        <div data-toggle="service_enabled_autohome" >
+          <input 
+                data-off-title="Disabled" 
+                data-on-title="Enabled" 
+                type="checkbox" 
+                name="service_enabled_autohome"
+               {% if service_enabled_autohome %} checked="checked"  {% endif %}
+          >
+        </div>
+      </td>
+      <td class="tg-0lax">
+        <div data-toggle="service_active_autohome" >
+          <input 
+                data-off-title="Stopped"
+                data-on-title="Running"
+                type="checkbox" 
+                name="service_activee_autohome"
+               {% if service_active_autohome %} checked="checked"  {% endif %}
+          >
+        </div>
+      </td>
+    <script type="text/javascript">
+        $('[data-toggle="service_enabled_autohome"]').Switch(
+        {
+            'width':100,
+            'selected':function(input,status){
+                $.ajax({
+                    type: "GET",
+                    url: "/set_service_enabled/autohome/"+status,
+                    success: function () { }
+                });
+             }
+        });
+        $('[data-toggle="service_active_autohome"]').Switch(
+        {
+            'width':100,
+            'selected':function(input,status){
+                $.ajax({
+                    type: "GET",
+                    url: "/set_service_active/autohome/"+status,
+                    success: function () { }
+                });
+             }
+        });
+    </script>
+    </tr>
+</table>
 
 <script type="text/javascript">
 /* uncomment to refresh
