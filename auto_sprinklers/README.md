@@ -8,11 +8,11 @@ Main purpose is to make a website that control sprinklers (solenoid valves) with
 sudo su
 apt-get update
 apt-get install git subversion screen lsof tcpdump nginx
-apt-get install python3 python3-pip python3-dev virtualenv
+apt-get install python3 python3-pip python3-dev virtualenv python3-lockfile python3-daemon
 ####change default python command to python3
 python=`which python`;  [[ -L "$python" ]] && [[ `python --version |grep  "Python 3"` ]] ||  ln -sf /usr/bin/python3 $python
-pip install --upgrade pip
-pip install virtualenv Django Django-scheduled-tasks
+pip3 install --upgrade pip
+pip3 install virtualenv django  
 ```
 ## Building environment for project 
 ```
