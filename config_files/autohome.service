@@ -1,0 +1,10 @@
+[Unit]
+Description=Autohome service
+After=multi-user.target
+
+[Service]
+Type=idle
+ExecStart=/usr/bin/python3 /var/www/html/auto_sprinklers/autohome.py
+
+[Install]
+WantedBy=multi-user.target
