@@ -28,11 +28,12 @@ mkdir -p $project_folder
 cd $project_folder
 svn export https://github.com/fchioralia/autohome.git/trunk/auto_sprinklers
 
-## configure nginx and gunicorn
+##optional test if project works
 cd $project_folder/auto_sprinklers
 ###optional test `python manage runserver 0.0.0.0:8000`
 ###optional test `gunicorn --bind 0.0.0.0:8000 home.wsgi`
 
+## configure nginx and gunicorn
 cd /etc/systemd/system
 svn export --force  https://github.com/fchioralia/autohome.git/trunk/config_files/gunicorn.service
 systemctl daemon-reload
@@ -43,6 +44,13 @@ cd /etc/nginx/sites-available/
 svn export --force  https://github.com/fchioralia/autohome.git/trunk/config_files/default
 systemctl enable nginx
 systemctl restart nginx
+
+## configure background service 
+cd /etc/systemd/system
+svn export --force  https://github.com/fchioralia/autohome.git/trunk/config_files/autohome.service
+systemctl enable autohome
+systemctl start autohome
+
 
 
 
