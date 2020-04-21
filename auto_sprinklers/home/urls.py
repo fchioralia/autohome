@@ -15,7 +15,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from sprinklers.views import run_sprinklers_service
+#from sprinklers.views import run_sprinklers_service
 
 urlpatterns = [
     path('sprinklers/', include('sprinklers.urls')),

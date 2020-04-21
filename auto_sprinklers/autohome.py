@@ -2,6 +2,7 @@
 '''daemon for controling home 
 gets data from sensors/schedule/etc.. and control the GPIOs'''
 import time
+from datetime import datetime
 import argparse
 import logging
 import os
@@ -10,16 +11,61 @@ import daemon
 from daemon import pidfile
 import signal
 import threading
+import RPi.GPIO as GPIO
 import django
 
 script_path = os.path.dirname(__file__)
 os.environ['DJANGO_SETTINGS_MODULE']='home.settings'
 django.setup()
 
-#from django.models import Sp
 from sprinklers.models import Sprinkler, Sensor, Scheduler
+from sprinklers.views import read_gpio, write_gpio
 
-class Scheduler: 
+def check_if_other_sprinklers_on(gpio):
+    ''' return True if any other sprinkler is on, False otherwise '''
+    on = False
+    if gpio:
+        list_sprinklers = Sprinkler.objects.order_by('sprinkler_gpio')
+        for sprinkler in list_sprinklers: 
+            if sprinkler.sprinkler_gpio != gpio:
+                check_gpio=read_gpio(sprinkler.sprinkler_gpio,'GPIO.OUT')
+                if check_gpio != 'HIGH':
+                    on = True
+                    break
+    return on
+
+def run_scheduler_gpio(sprinkler, setstate, logger):
+    gpio = sprinkler.sprinkler_gpio
+    if isinstance(gpio, int) == False:
+        raise ValueError("run_scheduler_gpio GPIO should be an integer argument!")
+
+#    GPIO.setwarnings(False)
+#    GPIO.setmode(GPIO.BCM)
+#    GPIO.setup(gpio, GPIO.OUT)
+    logger.debug('run_scheduler_gpio GPIO %d is should be %d', gpio, setstate)
+
+    if setstate == 0:
+#        sprinkler = Sprinkler.objects.get(sprinkler_gpio__exact=gpio)
+        logger.debug('GPIO %d is should be %d', gpio, setstate)
+        if sprinkler.sprinkler_enabled == True:
+        #if gpio not disabled
+#            if True:
+            if check_if_other_sprinklers_on(gpio) == False:
+                #if other gpios not running
+                write_gpio(gpio, setstate)
+                logger.debug('run_scheduler_gpio GPIO %d is set to LOW', gpio)
+                return "LOW"
+    elif setstate == 1:
+        #if not started by hand or sensor
+        if sprinkler.sprinkler_lock == False:
+            write_gpio(gpio, setstate)
+            logger.debug('run_scheduler_gpio GPIO %d is set to HIGH', gpio)
+            return "HIGH"
+    else:
+        raise ValueError("run_scheduler_gpio setstate variable should be 0 or 1!")
+
+class SchedulerThread: 
+    '''Scheduler thread to run sprinklers in the given time , logger is the log file'''
 
     def __init__(self): 
         self._running = True
@@ -28,15 +74,41 @@ class Scheduler:
         self._running = False
 
     def run(self, logger):
-        logger.debug('Starting Scheduler loop ')
+        logger.debug('Starting Scheduler loop.')
         while self._running:
-            logger.info('in loop scheduler')
-            list_sprinklers = Sprinkler.objects.order_by('sprinkler_gpio')
-            for sprinkler in list_sprinklers: 
-                logger.debug('Sprinkler %s', sprinkler.sprinkler_gpio)
+            logger.debug('Scheduler check for rain.')
+#            rain = check_weather()
+            rain = 0
+#            logger.info('in loop scheduler')
+            if rain == 0:
+                logger.debug('Scheduler no rain detected. Check scheduler.')
+                list_sprinklers = Sprinkler.objects.order_by('sprinkler_gpio')
+                for sprinkler in list_sprinklers: 
+                    logger.debug('Check sprinkler %s', sprinkler.sprinkler_name)
+                    now_hm = int(datetime.now().strftime('%H'))*60+int(datetime.now().strftime('%M'))
+                    sched = Scheduler.objects.get(scheduler_sprinkler_gpio__exact=sprinkler.sprinkler_gpio)
+                    logger.debug('%s scheduled between %d and %d, now = %d', sprinkler.sprinkler_name, sched.scheduler_start_time, sched.scheduler_stop_time, now_hm)
+                    if sched.scheduler_start_time < sched.scheduler_stop_time:
+                        if sched.scheduler_start_time < now_hm < sched.scheduler_stop_time:
+                            #start Sprinkler.sprinkler_gpio 
+                            run_scheduler_gpio(sprinkler, 0, logger)
+                        else:
+                            #stop Sprinkler.sprinkler_gpio
+                            run_scheduler_gpio(sprinkler, 1, logger)
+                    else:
+                        if sched.scheduler_start_time < now_hm < 1440 or 0 < now_hm < sched.scheduler_stop_time:
+                            #start Sprinkler.sprinkler_gpio 
+                            run_scheduler_gpio(sprinkler, 0, logger)
+                        else:
+                            #stop Sprinkler.sprinkler_gpio
+                            run_scheduler_gpio(sprinkler, 1, logger)
+
+            else:
+                logger.debug('Scheduler rain detected.')
+
 
             logger.debug('End Scheduler loop and wait')
-            time.sleep(10)
+            time.sleep(5)
         
 
 
@@ -54,9 +126,7 @@ def run_home(logf):
 
     logger.info('Starting autohome daemon')
 
-#    schedule = getattr(autohome_mods, 'scheduler')
-    # worker now is a reference to the function like alice.do_work
-    s_schedule=Scheduler()
+    s_schedule = SchedulerThread()
     t_schedule = threading.Thread(target=s_schedule.run, args=(logger,))
     try:
         t_schedule.start()  
@@ -65,7 +135,6 @@ def run_home(logf):
         t_schedule.join()
 
 #    while True:
-
         #threads for mod in [ sense_temp, sense_soil_humidity, sense_light ]:
 #        time.sleep(1)
 

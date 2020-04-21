@@ -94,14 +94,14 @@ def set_scheduler_data(request, sprinkler_gpio):
     return JsonResponse({"sprinkler_gpio": sprinkler_gpio}, status=200)
 
 
-def get_spr_status(request, sprinkler_gpio):
+def get_sprinkler_enabled(request, sprinkler_gpio):
     try:
         sprinkler = Sprinkler.objects.get(sprinkler_gpio__exact=sprinkler_gpio)
     except Sprinkler.DoesNotExist:
         raise Http404("No sprinkler found with gpio= %d!" % (sprinkler_gpio))
     return render(request, 'sprinklers/sprinkler.html', {'sprinkler': sprinkler})
 
-def get_sensor_status(request, sensor_gpio):
+def get_sensor_enabled(request, sensor_gpio):
     try:
         sprinkler = Sensor.objects.get(sensor_gpio__exact=sensor_gpio)
     except Sensor.DoesNotExist:
@@ -117,23 +117,23 @@ def get_sensor_active_state(request, sensor_gpio):
         reading_gpio=read_gpio(sensor_gpio, 'GPIO.IN')
         return JsonResponse({"sensor_active_state": reading_gpio}, status=200)
 
-def change_spr_state(request, sprinkler_gpio):
+def set_sprinkler_enabled(request, sprinkler_gpio):
     try:
         sprinkler = Sprinkler.objects.get(sprinkler_gpio__exact=sprinkler_gpio)
     except Sprinkler.DoesNotExist:
         raise Http404("No sprinkler found with gpio= %d!" % (sprinkler_gpio))
     else:
-        if sprinkler.sprinkler_state :
+        if sprinkler.sprinkler_enabled :
             write_gpio(sprinkler.sprinkler_gpio, 1)
-            sprinkler.sprinkler_state = False
-            sprinkler.sprinkler_active_state = False
+            sprinkler.sprinkler_enabled = False
+            sprinkler.sprinkler_lock = False
             sprinkler.save()
         else:
-            sprinkler.sprinkler_state = True
+            sprinkler.sprinkler_enabled = True
             sprinkler.save()
     return JsonResponse({"sprinkler_gpio": sprinkler_gpio}, status=200)
 
-def change_sensor_state(request, sensor_gpio):
+def set_sensor_enabled(request, sensor_gpio):
     try:
         sensor = Sensor.objects.get(sensor_gpio__exact=sensor_gpio)
     except Sensor.DoesNotExist:
@@ -148,7 +148,7 @@ def change_sensor_state(request, sensor_gpio):
     return JsonResponse({"sensor_gpio": sensor_gpio}, status=200)
 
 ''' change a state of a sprinkler '''
-def change_spr_active_state(request, sprinkler_gpio):
+def set_sprinkler_active(request, sprinkler_gpio):
     try:
         sprinkler = Sprinkler.objects.get(sprinkler_gpio__exact=sprinkler_gpio)
     except Sprinkler.DoesNotExist:
@@ -157,12 +157,12 @@ def change_spr_active_state(request, sprinkler_gpio):
         reading_gpio=read_gpio(sprinkler_gpio, 'GPIO.OUT')
         if  reading_gpio == "LOW":
             write_gpio(sprinkler_gpio, 1)
-            sprinkler.sprinkler_active_state = False
+            sprinkler.sprinkler_lock = False
             sprinkler.save()
         else:
-            if  sprinkler.sprinkler_state == True :
+            if  sprinkler.sprinkler_enabled == True :
                 write_gpio(sprinkler_gpio, 0)
-                sprinkler.sprinkler_active_state = True
+                sprinkler.sprinkler_lock = True
                 sprinkler.save()
     return JsonResponse({"sprinkler_gpio": sprinkler_gpio}, status=200)
 
@@ -213,13 +213,4 @@ def write_gpio(outport, setstate):
     else:
         raise ValueError("setstate should be 0 or 1!")
 
-
-#@background(schedule=10)
-def run_sprinklers_service(self):
-    try:
-        state = read_gpio(25, 'GPIO.IN')
-#        state = write_gpio(18, 1)
-    except ValueError as exception:
-        return exception.message
-    return HttpResponse("%s" % state)
 

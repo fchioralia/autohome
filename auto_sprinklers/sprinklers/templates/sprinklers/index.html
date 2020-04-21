@@ -68,7 +68,7 @@ $.ajaxSetup({
 {% if list_sprinklers %}
     {% for sprinkler in list_sprinklers %}
     <tr>
-      <td class="tg-0lax"><a href="{% url 'get_spr_status' sprinkler.sprinkler_gpio %}">{{ sprinkler.sprinkler_name }}</a></td>
+      <td class="tg-0lax"><a href="{% url 'get_sprinkler_enabled' sprinkler.sprinkler_gpio %}">{{ sprinkler.sprinkler_name }}</a></td>
       <td class="tg-0lax">
         <div data-toggle="switchstate{{ sprinkler.sprinkler_gpio }}" >
           <input 
@@ -76,7 +76,7 @@ $.ajaxSetup({
                 data-on-title="Enabled" 
                 type="checkbox" 
                 name="{{ sprinkler.sprinkler_name }}"
-               {% if sprinkler.sprinkler_state %} checked="checked"  {% endif %}
+               {% if sprinkler.sprinkler_enabled %} checked="checked"  {% endif %}
            > 
         </div>
       </td>
@@ -85,7 +85,7 @@ $.ajaxSetup({
           <input type="checkbox" 
             name="{{ sprinkler.sprinkler_name }}"
             data-on-title="Running" data-off-title="Stopped"   data-on-color="success" data-off-color="warning"          
-            {% if sprinkler.sprinkler_active_state %} checked="checked"  {% endif %}
+            {% if sprinkler.sprinkler_lock %} checked="checked"  {% endif %}
           > 
         </div>
       </td>
@@ -170,7 +170,7 @@ $.ajaxSetup({
             'selected':function(input,status){
                 $.ajax({
                     type: "GET",
-                    url: "/change_spr_active_state/{{ sprinkler.sprinkler_gpio }}",
+                    url: "/set_sprinkler_active/{{ sprinkler.sprinkler_gpio }}",
                     success: function () { }
                 });
              }
@@ -181,7 +181,7 @@ $.ajaxSetup({
             'selected':function(input,status){
                 $.ajax({
                     type: "GET",
-                    url: "/change_spr_state/{{ sprinkler.sprinkler_gpio }}",
+                    url: "/set_sprinkler_enabled/{{ sprinkler.sprinkler_gpio }}",
                     success: function () { }
                 });
              }
@@ -207,7 +207,7 @@ $.ajaxSetup({
 {% if list_sensors %}
     {% for sensor in list_sensors %}
     <tr>
-      <td class="tg-0lax"><a href="{% url 'get_sensor_status' sensor.sensor_gpio %}">{{ sensor.sensor_name }}</a></td>
+      <td class="tg-0lax"><a href="{% url 'get_sensor_enabled' sensor.sensor_gpio %}">{{ sensor.sensor_name }}</a></td>
       <td class="tg-0lax">
         <div data-toggle="sensorstate{{ sensor.sensor_gpio }}" >
           <input 
@@ -249,7 +249,7 @@ font-size: 100%; "
             'selected':function(input,status){
                 $.ajax({
                     type: "GET",
-                    url: "/change_sensor_state/{{ sensor.sensor_gpio }}",
+                    url: "/set_sensor_enabled/{{ sensor.sensor_gpio }}",
                     success: function () { }
                 });
              }

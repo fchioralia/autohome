@@ -13,8 +13,8 @@ class Sensor(models.Model):
 
 class Sprinkler(models.Model):
     sprinkler_gpio = models.IntegerField(default=0)
-    sprinkler_active_state =  models.BooleanField(default=False)
-    sprinkler_state =  models.BooleanField(default=False)
+    sprinkler_lock =  models.BooleanField(default=False)
+    sprinkler_enabled =  models.BooleanField(default=False)
     sprinkler_name = models.CharField(max_length=50)
 
     def __str__(self):
