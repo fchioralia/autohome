@@ -101,6 +101,15 @@ def get_sprinkler_enabled(request, sprinkler_gpio):
         raise Http404("No sprinkler found with gpio= %d!" % (sprinkler_gpio))
     return render(request, 'sprinklers/sprinkler.html', {'sprinkler': sprinkler})
 
+def get_sprinkler_active(request, sprinkler_gpio):
+    try:
+        sprinkler = Sprinkler.objects.get(sprinkler_gpio__exact=sprinkler_gpio)
+    except Sprinkler.DoesNotExist:
+        raise Http404("No sprinkler found with gpio= %d!" % (sprinkler_gpio))
+    else:
+        reading_gpio=read_gpio(sprinkler_gpio, 'GPIO.OUT')
+        return JsonResponse({"sprinkler_active_state": reading_gpio}, status=200)
+
 def get_sensor_enabled(request, sensor_gpio):
     try:
         sprinkler = Sensor.objects.get(sensor_gpio__exact=sensor_gpio)

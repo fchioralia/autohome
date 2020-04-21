@@ -42,25 +42,29 @@ def run_scheduler_gpio(sprinkler, setstate, logger):
 #    GPIO.setwarnings(False)
 #    GPIO.setmode(GPIO.BCM)
 #    GPIO.setup(gpio, GPIO.OUT)
-    logger.debug('run_scheduler_gpio GPIO %d is should be %d', gpio, setstate)
+    logger.debug('run_scheduler_gpio GPIO %d it should be %d', gpio, setstate)
 
     if setstate == 0:
 #        sprinkler = Sprinkler.objects.get(sprinkler_gpio__exact=gpio)
-        logger.debug('GPIO %d is should be %d', gpio, setstate)
         if sprinkler.sprinkler_enabled == True:
         #if gpio not disabled
-#            if True:
             if check_if_other_sprinklers_on(gpio) == False:
                 #if other gpios not running
                 write_gpio(gpio, setstate)
-                logger.debug('run_scheduler_gpio GPIO %d is set to LOW', gpio)
+                logger.info('run_scheduler_gpio GPIO %d is set to LOW', gpio)
                 return "LOW"
+        else:
+            logger.debug('run_scheduler_gpio GPIO %d is set to LOW, but is disabled', gpio)
+            return "HIGH"
     elif setstate == 1:
         #if not started by hand or sensor
         if sprinkler.sprinkler_lock == False:
             write_gpio(gpio, setstate)
-            logger.debug('run_scheduler_gpio GPIO %d is set to HIGH', gpio)
+            logger.info('run_scheduler_gpio GPIO %d is set to HIGH', gpio)
             return "HIGH"
+        else:
+            logger.debug('run_scheduler_gpio GPIO %d is set to HIGH, but is started by others', gpio)
+            return "LOW"
     else:
         raise ValueError("run_scheduler_gpio setstate variable should be 0 or 1!")
 

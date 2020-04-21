@@ -67,6 +67,21 @@ $.ajaxSetup({
   </tr>
 {% if list_sprinklers %}
     {% for sprinkler in list_sprinklers %}
+    <script type="text/javascript">
+    $.ajax({
+        type: "GET",
+        url: "/get_sprinkler_active/{{ sprinkler.sprinkler_gpio }}",
+        dataType: 'json',
+        success: function (data) {
+            if(data.sprinkler_active_state == 'LOW') {
+                $('#checkbox{{ sprinkler.sprinkler_gpio }}').prop('checked', true);
+            }
+            else{
+                $('#checkbox{{ sprinkler.sprinkler_gpio }}').prop('checked', false);
+            }
+        }
+    }); 
+    </script>
     <tr>
       <td class="tg-0lax"><a href="{% url 'get_sprinkler_enabled' sprinkler.sprinkler_gpio %}">{{ sprinkler.sprinkler_name }}</a></td>
       <td class="tg-0lax">
@@ -83,9 +98,8 @@ $.ajaxSetup({
       <td class="tg-0lax">
         <div data-toggle="switch{{ sprinkler.sprinkler_gpio }}" >
           <input type="checkbox" 
-            name="{{ sprinkler.sprinkler_name }}"
+            name="checkbox{{ sprinkler.sprinkler_gpio }}"  id="checkbox{{ sprinkler.sprinkler_gpio }}"
             data-on-title="Running" data-off-title="Stopped"   data-on-color="success" data-off-color="warning"          
-            {% if sprinkler.sprinkler_lock %} checked="checked"  {% endif %}
           > 
         </div>
       </td>

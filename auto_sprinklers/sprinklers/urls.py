@@ -22,7 +22,8 @@ from . import views
 urlpatterns = [
     path('', views.index, name='index'),
 #    path('sprinkler/<int:sprinkler_gpio>/', views.get_sprinkler_enable, name='get_sprinkler_enable'),
-    path('get_spinkler_enabled/<int:sprinkler_gpio>/', views.get_sprinkler_enabled, name='get_sprinkler_enabled'),
+    path('get_sprinkler_enabled/<int:sprinkler_gpio>/', views.get_sprinkler_enabled, name='get_sprinkler_enabled'),
+    path('get_sprinkler_active/<int:sprinkler_gpio>/', views.get_sprinkler_active, name='get_sprinkler_active'),
     path('get_sensor_enabled/<int:sprinkler_gpio>/', views.get_sensor_enabled, name='get_sensor_enabled'),
     path('set_sensor_enabled/<int:sensor_gpio>', views.set_sensor_enabled, name='set_sensor_enabled'),
     path('get_sensor_active_state/<int:sensor_gpio>', views.get_sensor_active_state, name='get_sensor_active_state'),
