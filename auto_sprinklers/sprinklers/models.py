@@ -4,7 +4,7 @@ from django.db import models
 
 class Sensor(models.Model):
     sensor_gpio = models.IntegerField(default=0)
-    sensor_state = models.BooleanField(default=False)
+    sensor_enabled = models.BooleanField(default=False)
     sensor_name = models.CharField(max_length=50)
 
     def __str__(self):
@@ -26,3 +26,7 @@ class Scheduler(models.Model):
     scheduler_start_time = models.IntegerField()
     scheduler_stop_time = models.IntegerField()
 
+class Code(models.Model):
+
+    code_sprinkler_gpio = models.IntegerField(default=0)
+    code_value = models.CharField(max_length=50)

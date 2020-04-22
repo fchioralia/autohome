@@ -229,7 +229,7 @@ $.ajaxSetup({
                 data-on-title="Enabled" 
                 type="checkbox" 
                 name="{{ sensor.sensor_name }}"
-               {% if sensor.sensor_state %} checked="checked"  {% endif %}
+               {% if sensor.sensor_enabled %} checked="checked"  {% endif %}
            > 
         </div>
       </td>

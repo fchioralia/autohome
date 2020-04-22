@@ -9,7 +9,7 @@ import sys
 import os
 import RPi.GPIO as GPIO
 
-from .models import Sprinkler, Sensor, Scheduler
+from .models import Sprinkler, Sensor, Scheduler, Code
 
 def index(request):
     list_sprinklers = Sprinkler.objects.order_by('sprinkler_gpio')
@@ -148,11 +148,11 @@ def set_sensor_enabled(request, sensor_gpio):
     except Sensor.DoesNotExist:
         raise Http404("No sensor found with gpio= %d!" % (sensor_gpio))
     else:
-        if sensor.sensor_state :
-            sensor.sensor_state = False
+        if sensor.sensor_enabled :
+            sensor.sensor_enabled = False
             sensor.save()
         else:
-            sensor.sensor_state = True
+            sensor.sensor_enabled = True
             sensor.save()
     return JsonResponse({"sensor_gpio": sensor_gpio}, status=200)
 
@@ -222,4 +222,18 @@ def write_gpio(outport, setstate):
     else:
         raise ValueError("setstate should be 0 or 1!")
 
+'''Lock gpio out port if  setstate is True, unlock if False'''
+def lock_gpio(outport, setstate):
+    if setstate == True or setstate == False:
+        sprinkler = Sprinkler.objects.get(sprinkler_gpio__exact=outport)
+        sprinkler.sprinkler_lock = setstate
+        sprinkler.save()
 
+'''Input a code and return a gpio, 0 if nothing found '''
+def check_code(input_code):
+    try:
+        code = Code.objects.get(code_value__exact=input_code)
+    except Code.DoesNotExist:
+        return 0
+    else:
+        return code.code_sprinkler_gpio
