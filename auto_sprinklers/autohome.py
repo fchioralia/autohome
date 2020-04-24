@@ -21,28 +21,6 @@ django.setup()
 from sprinklers.models import Sprinkler, Sensor, Scheduler, Code, Priority
 from sprinklers.views import read_gpio, write_gpio, lock_gpio, check_code, stop_all_locked_sprinklers, stop_others_with_lower_priority
 
-def check_if_other_sprinklers_on(gpio):
-    ''' return True if any other sprinkler is on, False otherwise '''
-    on = False
-    if gpio:
-        list_sprinklers = Sprinkler.objects.order_by('sprinkler_gpio')
-        for sprinkler in list_sprinklers: 
-            if sprinkler.sprinkler_gpio != gpio:
-                check_gpio=read_gpio(sprinkler.sprinkler_gpio,'GPIO.OUT')
-                if check_gpio != 'HIGH':
-                    on = True
-                    break
-    return on
-
-def stop_all_other_sprinklers(gpio,logger):
-    ''' if gpio=0 stop all, else all others '''
-    list_sprinklers = Sprinkler.objects.order_by('sprinkler_gpio')
-    for sprinkler in list_sprinklers:
-        if sprinkler.sprinkler_gpio != gpio:
-            write_gpio(sprinkler.sprinkler_gpio, 1)
-            lock_gpio(sprinkler.sprinkler_gpio, False)
-            logger.info('Sensor GPIO %d is set to HIGH and unlocked', sprinkler.sprinkler_gpio)
-
 def set_gpio(sprinkler, setstate, priority_name, logger):
     gpio = sprinkler.sprinkler_gpio
     if isinstance(gpio, int) == False:
@@ -62,7 +40,6 @@ def set_gpio(sprinkler, setstate, priority_name, logger):
         if sprinkler.sprinkler_enabled == True:
             #stop_others_with_lower_priority('priority_name')
             all_off = stop_others_with_lower_priority(priority_name)
-#           if check_if_other_sprinklers_on(gpio) == False:
             if all_off == 0:
                 #if other gpios not running
                 write_gpio(gpio, setstate)
@@ -164,10 +141,10 @@ class SensorsThread:
             sprinkler_to_start = check_code(code)
 #            logger.debug('Sesnsor spri is  %d',sprinkler_to_start)
             if sprinkler_to_start != 0:
-#                stop_all_other_sprinklers(sprinkler_to_start,logger)
-#                write_gpio(sprinkler_to_start, 0)
-#                lock_gpio(sprinkler_to_start, priority_sensor)
-#                logger.info('Sensor GPIO %d is set to LOW and locked', sprinkler_to_start)
+            #stop_other_if_priority_lower
+                check_gpio=read_gpio(sprinkler_to_start,'GPIO.OUT')
+                if check_gpio == 'HIGH':
+                    stop_all_locked_sprinklers('sensor')
                 sprinkler = Sprinkler.objects.get(sprinkler_gpio__exact=sprinkler_to_start)
                 set_gpio(sprinkler, 0, 'sensor', logger)
             else:
