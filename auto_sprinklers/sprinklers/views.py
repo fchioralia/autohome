@@ -5,11 +5,12 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.http import JsonResponse
 #from django.template import loader
 #from background_task import background
+import logging
 import sys
 import os
 import RPi.GPIO as GPIO
 
-from .models import Sprinkler, Sensor, Scheduler, Code
+from .models import Sprinkler, Sensor, Scheduler, Code, Priority
 
 def index(request):
     list_sprinklers = Sprinkler.objects.order_by('sprinkler_gpio')
@@ -163,16 +164,24 @@ def set_sprinkler_active(request, sprinkler_gpio):
     except Sprinkler.DoesNotExist:
         raise Http404("No sprinkler found with gpio= %d!" % (sprinkler_gpio))
     else:
+        #get port active state
         reading_gpio=read_gpio(sprinkler_gpio, 'GPIO.OUT')
-        if  reading_gpio == "LOW":
-            write_gpio(sprinkler_gpio, 1)
-            sprinkler.sprinkler_lock = False
-            sprinkler.save()
+        #get priority for manual
+        try:
+            priority = Priority.objects.get(priority_name__exact='manual')
+        except Sprinkler.DoesNotExist:
+            priority_manual=0
         else:
-            if  sprinkler.sprinkler_enabled == True :
+            priority_manual=priority.priority_value
+
+        if reading_gpio == "LOW":
+            write_gpio(sprinkler_gpio, 1)
+            lock_gpio(sprinkler_gpio, 0)
+        else:
+            if sprinkler.sprinkler_enabled == True:
+                stop_all_locked_sprinklers('manual')
+                lock_gpio(sprinkler_gpio, priority_manual)
                 write_gpio(sprinkler_gpio, 0)
-                sprinkler.sprinkler_lock = True
-                sprinkler.save()
     return JsonResponse({"sprinkler_gpio": sprinkler_gpio}, status=200)
 
 '''Manage input of the sensor given by first argument = gpio bcm port and mode in/out'''
@@ -215,19 +224,22 @@ def write_gpio(outport, setstate):
     GPIO.setup(outport, GPIO.OUT)
     if setstate == 0:
         GPIO.output(outport, GPIO.LOW)
+        log('write_gpio port '+ str(outport) +' receive 0' )
         return "LOW"
     elif setstate == 1:
         GPIO.output(outport, GPIO.HIGH)
+        log('write_gpio port '+ str(outport) +' receive 1' )
         return "HIGH"
     else:
         raise ValueError("setstate should be 0 or 1!")
 
-'''Lock gpio out port if  setstate is True, unlock if False'''
-def lock_gpio(outport, setstate):
-    if setstate == True or setstate == False:
+'''Lock gpio sets priority on port'''
+def lock_gpio(outport, setpriority):
+    if setpriority != None:
         sprinkler = Sprinkler.objects.get(sprinkler_gpio__exact=outport)
-        sprinkler.sprinkler_lock = setstate
+        sprinkler.sprinkler_lock = setpriority
         sprinkler.save()
+        log('lock_gpio port '+ str(outport) +' receive '+ str(setpriority) )
 
 '''Input a code and return a gpio, 0 if nothing found '''
 def check_code(input_code):
@@ -237,3 +249,51 @@ def check_code(input_code):
         return 0
     else:
         return code.code_sprinkler_gpio
+
+def stop_all_locked_sprinklers(priority_name):
+    ''' stop all locked with the same priority '''
+    list_sprinklers = Sprinkler.objects.order_by('sprinkler_gpio')
+    try:
+        priority = Priority.objects.get(priority_name__exact=priority_name)
+    except Sprinkler.DoesNotExist:
+        this_priority=0
+    else:
+        this_priority=priority.priority_value
+
+    for sprinkler in list_sprinklers:
+        if sprinkler.sprinkler_lock == this_priority:
+            write_gpio(sprinkler.sprinkler_gpio, 1)
+            lock_gpio(sprinkler.sprinkler_gpio, 0)
+
+def stop_others_with_lower_priority(priority_name):
+    list_sprinklers = Sprinkler.objects.order_by('sprinkler_gpio')
+    try:
+        priority = Priority.objects.get(priority_name__exact=priority_name)
+    except Sprinkler.DoesNotExist:
+        this_priority=0
+    else:
+        this_priority=priority.priority_value
+    on = 0
+    for sprinkler in list_sprinklers:
+        if sprinkler.sprinkler_lock < this_priority:
+            write_gpio(sprinkler.sprinkler_gpio, 1)
+            lock_gpio(sprinkler.sprinkler_gpio, 0)
+        else:
+            on = 1
+    return on
+
+def log(message):
+    log_file='/var/log/autohome_daemon.log'
+    logger = logging.getLogger('autohome_daemon')
+#    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
+    fhandle = logging.FileHandler(log_file)
+    formatstr = '%(asctime)s (%(levelname)s): %(message)s'
+    formatter = logging.Formatter(formatstr)
+    fhandle.setFormatter(formatter)
+    if (logger.hasHandlers()):
+        logger.handlers.clear()
+    logger.addHandler(fhandle)
+
+    logger.info(message)
+

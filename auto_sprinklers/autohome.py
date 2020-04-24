@@ -18,8 +18,8 @@ script_path = os.path.dirname(__file__)
 os.environ['DJANGO_SETTINGS_MODULE']='home.settings'
 django.setup()
 
-from sprinklers.models import Sprinkler, Sensor, Scheduler, Code
-from sprinklers.views import read_gpio, write_gpio, lock_gpio, check_code
+from sprinklers.models import Sprinkler, Sensor, Scheduler, Code, Priority
+from sprinklers.views import read_gpio, write_gpio, lock_gpio, check_code, stop_all_locked_sprinklers, stop_others_with_lower_priority
 
 def check_if_other_sprinklers_on(gpio):
     ''' return True if any other sprinkler is on, False otherwise '''
@@ -43,51 +43,51 @@ def stop_all_other_sprinklers(gpio,logger):
             lock_gpio(sprinkler.sprinkler_gpio, False)
             logger.info('Sensor GPIO %d is set to HIGH and unlocked', sprinkler.sprinkler_gpio)
 
-def stop_all_locked_sprinklers(logger):
-    ''' if gpio=0 stop all, else all others '''
-    list_sprinklers = Sprinkler.objects.order_by('sprinkler_gpio')
-    for sprinkler in list_sprinklers: 
-        if sprinkler.sprinkler_lock == True:
-            write_gpio(sprinkler.sprinkler_gpio, 1)
-            lock_gpio(sprinkler.sprinkler_gpio, False)
-            logger.info('Sensor GPIO %d is set to HIGH and unlocked', sprinkler.sprinkler_gpio)
-
-def run_scheduler_gpio(sprinkler, setstate, logger):
+def set_gpio(sprinkler, setstate, priority_name, logger):
     gpio = sprinkler.sprinkler_gpio
     if isinstance(gpio, int) == False:
-        raise ValueError("run_scheduler_gpio GPIO should be an integer argument!")
+        raise ValueError("set_gpio GPIO should be an integer argument!")
 
-#    GPIO.setwarnings(False)
-#    GPIO.setmode(GPIO.BCM)
-#    GPIO.setup(gpio, GPIO.OUT)
-    logger.debug('run_scheduler_gpio GPIO %d it should be %d', gpio, setstate)
+    try:
+        prio = Priority.objects.get(priority_name__exact=priority_name)
+    except Priority.DoesNotExist:
+        priority_value=0
+    else:
+        priority_value=prio.priority_value
+
+    logger.debug('start set_gpio %d to %d with priority %d', gpio, setstate, priority_value)
 
     if setstate == 0:
-#        sprinkler = Sprinkler.objects.get(sprinkler_gpio__exact=gpio)
-        if sprinkler.sprinkler_enabled == True:
         #if gpio not disabled
-            if check_if_other_sprinklers_on(gpio) == False:
+        if sprinkler.sprinkler_enabled == True:
+            #stop_others_with_lower_priority('priority_name')
+            all_off = stop_others_with_lower_priority(priority_name)
+#           if check_if_other_sprinklers_on(gpio) == False:
+            if all_off == 0:
                 #if other gpios not running
                 write_gpio(gpio, setstate)
-                logger.info('run_scheduler_gpio GPIO %d is set to LOW', gpio)
+                lock_gpio(gpio, priority_value)
+                logger.info('set_gpio GPIO %d to LOW', gpio)
                 return "LOW"
             else:
-                logger.debug('run_scheduler_gpio GPIO %d is set to LOW, but other have priority', gpio)
+                logger.debug('set_gpio GPIO %d to LOW not performed, low priority', gpio)
                 return "HIGH"
         else:
-            logger.debug('run_scheduler_gpio GPIO %d is set to LOW, but is disabled', gpio)
+            logger.debug('set_gpio GPIO %d to LOW not performed, disabled', gpio)
             return "HIGH"
     elif setstate == 1:
-        #if not started by hand or sensor
-        if sprinkler.sprinkler_lock == False:
+        #if not started by higher prio
+        logger.info('set_gpio %d prio is %d ',gpio, priority_value)
+        if sprinkler.sprinkler_lock <= priority_value:
+            lock_gpio(gpio, 0)
             write_gpio(gpio, setstate)
-            logger.info('run_scheduler_gpio GPIO %d is set to HIGH', gpio)
+            logger.info('set_gpio GPIO %d to HIGH', gpio)
             return "HIGH"
         else:
-            logger.debug('run_scheduler_gpio GPIO %d is set to HIGH, but is started by others', gpio)
+            logger.debug('set_gpio GPIO %d to HIGH, not performed, low priority', gpio)
             return "LOW"
     else:
-        raise ValueError("run_scheduler_gpio setstate variable should be 0 or 1!")
+        raise ValueError("set_gpio setstate variable should be 0 or 1!")
 
 class SchedulerThread: 
     '''Scheduler thread to run sprinklers in the given time , logger is the log file'''
@@ -116,17 +116,17 @@ class SchedulerThread:
                     if sched.scheduler_start_time < sched.scheduler_stop_time:
                         if sched.scheduler_start_time < now_hm < sched.scheduler_stop_time:
                             #start Sprinkler.sprinkler_gpio 
-                            run_scheduler_gpio(sprinkler, 0, logger)
+                            set_gpio(sprinkler, 0, 'scheduler', logger)
                         else:
                             #stop Sprinkler.sprinkler_gpio
-                            run_scheduler_gpio(sprinkler, 1, logger)
+                            set_gpio(sprinkler, 1, 'scheduler', logger)
                     else:
                         if sched.scheduler_start_time < now_hm < 1440 or 0 < now_hm < sched.scheduler_stop_time:
                             #start Sprinkler.sprinkler_gpio 
-                            run_scheduler_gpio(sprinkler, 0, logger)
+                            set_gpio(sprinkler, 0, 'scheduler', logger)
                         else:
                             #stop Sprinkler.sprinkler_gpio
-                            run_scheduler_gpio(sprinkler, 1, logger)
+                            set_gpio(sprinkler, 1, 'scheduler', logger)
 
             else:
                 logger.debug('Scheduler rain detected.')
@@ -164,12 +164,16 @@ class SensorsThread:
             sprinkler_to_start = check_code(code)
 #            logger.debug('Sesnsor spri is  %d',sprinkler_to_start)
             if sprinkler_to_start != 0:
-                stop_all_other_sprinklers(sprinkler_to_start,logger)
-                write_gpio(sprinkler_to_start, 0)
-                lock_gpio(sprinkler_to_start, True)
-                logger.info('Sensor GPIO %d is set to LOW and locked', sprinkler_to_start)
+#                stop_all_other_sprinklers(sprinkler_to_start,logger)
+#                write_gpio(sprinkler_to_start, 0)
+#                lock_gpio(sprinkler_to_start, priority_sensor)
+#                logger.info('Sensor GPIO %d is set to LOW and locked', sprinkler_to_start)
+                sprinkler = Sprinkler.objects.get(sprinkler_gpio__exact=sprinkler_to_start)
+                set_gpio(sprinkler, 0, 'sensor', logger)
             else:
-                stop_all_locked_sprinklers(logger)
+            #stop_all_locked_by_sensor
+                stop_all_locked_sprinklers('sensor')
+                logger.debug('Sensors stop all with the same priority')
 
             logger.debug('End Sensors loop and wait')
             time.sleep(1)
@@ -185,6 +189,8 @@ def run_home(logf):
     formatstr = '%(asctime)s (%(levelname)s): %(message)s'
     formatter = logging.Formatter(formatstr)
     fhandle.setFormatter(formatter)
+    if (logger.hasHandlers()):
+        logger.handlers.clear()
     logger.addHandler(fhandle)
 
     logger.info('Starting autohome daemon')
@@ -204,10 +210,6 @@ def run_home(logf):
     except (KeyboardInterrupt, SystemExit):
         s_sensors.terminate()
         t_sensors.join()
-
-#    while True:
-        #threads for mod in [ sense_temp, sense_soil_humidity, sense_light ]:
-#        time.sleep(1)
 
 def shutdown(signum, frame):  # signum and frame are mandatory
     sys.exit(0)
