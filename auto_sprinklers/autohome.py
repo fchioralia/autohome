@@ -13,6 +13,8 @@ import signal
 import threading
 import RPi.GPIO as GPIO
 import django
+import requests
+import json
 
 script_path = os.path.dirname(__file__)
 os.environ['DJANGO_SETTINGS_MODULE']='home.settings'
@@ -20,6 +22,38 @@ django.setup()
 
 from sprinklers.models import Sprinkler, Sensor, Scheduler, Code, Priority
 from sprinklers.views import read_gpio, write_gpio, lock_gpio, check_code, stop_all_locked_sprinklers, stop_others_with_lower_priority
+
+def check_weather():
+    ''' connect to openweather and return 1 if there is rain in the next 24h or min_temp > 277Kelvin'''
+    on = 0
+    outjson = "forecast.json"
+    apikey = "117f04a82298fb8e296bb5ee7eb543d6"
+    bragadiru = 683914
+    url = "https://api.openweathermap.org/data/2.5/forecast?id="+str(bragadiru)+"&APPID="+str(apikey)
+
+    if not os.path.isfile(outjson):
+        os.mknod(outjson)
+
+    fileTIMEnow=time.time()
+    fileTIMEmodified=os.path.getmtime(outjson)
+
+    if ( fileTIMEnow-fileTIMEmodified > 62400 ) or os.stat(outjson).st_size == 0:
+        #download only if older then 24h or greater than 0
+        r = requests.get(url)
+        jsonu = r.json()
+        with open(outjson, 'wb') as f:
+            f.write(r.content)
+    else:
+        with open(outjson) as json_file:
+            jsonu = json.load(json_file)
+
+    for list in jsonu['list']:
+        if list['main']['temp_min'] < 277.15 :
+            on = 1
+        for weather in list['weather']:
+            if weather['main'] == "Rain" :
+                on = 1
+    return on
 
 def set_gpio(sprinkler, setstate, priority_name, logger):
     gpio = sprinkler.sprinkler_gpio
@@ -78,9 +112,9 @@ class SchedulerThread:
     def run(self, logger):
         logger.debug('Starting Scheduler loop.')
         while self._running:
-            logger.debug('Scheduler check for rain.')
-#            rain = check_weather()
-            rain = 0
+            rain = check_weather()
+            logger.debug('Scheduler check for rain. result= %d', rain)
+#            rain = 0
 #            logger.info('in loop scheduler')
             if rain == 0:
                 logger.debug('Scheduler no rain detected. Check scheduler.')

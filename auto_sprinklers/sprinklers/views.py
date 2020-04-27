@@ -113,14 +113,14 @@ def get_sprinkler_active(request, sprinkler_gpio):
 
 def get_sensor_enabled(request, sensor_gpio):
     try:
-        sprinkler = Sensor.objects.get(sensor_gpio__exact=sensor_gpio)
+        sensor = Sensor.objects.get(sensor_gpio__exact=sensor_gpio)
     except Sensor.DoesNotExist:
         raise Http404("No sensor found with gpio= %d!" % (sensor_gpio))
     return render(request, 'sprinklers/sensor.html', {'sensor': sensor})
 
 def get_sensor_active_state(request, sensor_gpio):
     try:
-        sprinkler = Sensor.objects.get(sensor_gpio__exact=sensor_gpio)
+        sensor = Sensor.objects.get(sensor_gpio__exact=sensor_gpio)
     except Sensor.DoesNotExist:
         raise Http404("No sensor found with gpio= %d!" % (sensor_gpio))
     else:
