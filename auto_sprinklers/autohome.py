@@ -2,6 +2,7 @@
 '''daemon for controling home 
 gets data from sensors/schedule/etc.. and control the GPIOs'''
 import time
+import syslog
 from datetime import datetime
 import argparse
 import logging
@@ -223,6 +224,12 @@ def run_home(logf):
         t_sensors.join()
 
 def shutdown(signum, frame):  # signum and frame are mandatory
+    #stop all sprinklers before stop
+    syslog.syslog("STOP all sprinklers")
+    list_sprinklers = Sprinkler.objects.order_by('sprinkler_gpio')
+    for sprinkler in list_sprinklers:
+        write_gpio(sprinkler.sprinkler_gpio, 1)
+        lock_gpio(sprinkler.sprinkler_gpio, 0)
     sys.exit(0)
 
 def start_daemon(pidf, logf):
