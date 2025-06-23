@@ -35,7 +35,7 @@ web_password: pi_passwd
 web_auth_file: "/etc/nginx/.htpasswd"
 web_root: /var/www/html
 app_folder: "{{ web_root }}/auto_sprinklers"
-app_django_environment: "/root/.virtualenvs/django"
+app_environment: "/root/.virtualenvs/django"
 
 ```
 3. Run the playbook using the following command from this folder:

@@ -6,14 +6,16 @@
     version: 'master'
     force: true
 
-- name: Copy only the auto_sprinklers folder to the app folder
-  ansible.builtin.copy:
+- name: Synchronize only the auto_sprinklers folder to the app folder (delete extra files)
+  synchronize:
     src: /tmp/autohome/auto_sprinklers/
     dest: "{{ app_folder }}/"
-    owner: root
-    group: root
-    mode: '0755'
-    remote_src: true
+    delete: true
+    recursive: true
+    mode: push
+    rsync_opts:
+      - "--exclude=.git"
+  delegate_to: raspberry_pi
 
 - name: Ensure python3-venv is installed
   ansible.builtin.apt:
@@ -21,40 +23,40 @@
     state: present
 
 - name: Create virtual environment for Django
-  ansible.builtin.command: "python3 -m venv {{ app_django_environment }} "
+  ansible.builtin.command: "python3 -m venv {{ app_environment }} "
   args:
-    creates: "{{ app_django_environment }}"
+    creates: "{{ app_environment }}"
 
 - name: Upgrade pip in virtualenv
   ansible.builtin.pip:
     name: pip
-    virtualenv: "{{ app_django_environment }}"
+    virtualenv: "{{ app_environment }}"
     extra_args: --upgrade
 
 - name: Install Django in virtualenv
   ansible.builtin.pip:
     name: django
-    virtualenv: "{{ app_django_environment }}"
+    virtualenv: "{{ app_environment }}"
 
 - name: Install python-daemon in virtualenv
   ansible.builtin.pip:
     name: python-daemon
-    virtualenv: "{{ app_django_environment }}"
+    virtualenv: "{{ app_environment }}"
 
-- name: Install RPi.GPIO in virtualenv
+- name: Install rpi-lgpio in virtualenv
   ansible.builtin.pip:
-    name: pRPi.GPIO
-    virtualenv: "{{ app_django_environment }}"
+    name: rpi-lgpio
+    virtualenv: "{{ app_environment }}"
 
 - name: Install requests in virtualenv
   ansible.builtin.pip:
     name: requests
-    virtualenv: "{{ app_django_environment }}"
+    virtualenv: "{{ app_environment }}"
 
 - name: Install Gunicorn in Django virtualenv
   ansible.builtin.pip:
     name: gunicorn
-    virtualenv: "{{ app_django_environment }}"
+    virtualenv: "{{ app_environment }}"
 
 - name: Configure Gunicorn systemd service
   ansible.builtin.template:
