@@ -12,7 +12,7 @@ import daemon
 from daemon import pidfile
 import signal
 import threading
-import RPi.GPIO as GPIO
+import lgpio
 import django
 import requests
 import json
