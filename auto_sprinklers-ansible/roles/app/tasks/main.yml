@@ -1,0 +1,89 @@
+# This file is part of the Auto Sprinklers project.
+- name: Clone the full repository to a temp folder
+  ansible.builtin.git:
+    repo: 'https://github.com/fchioralia/autohome.git'
+    dest: /tmp/autohome
+    version: 'master'
+    force: true
+
+- name: Copy only the auto_sprinklers folder to the app folder
+  ansible.builtin.copy:
+    src: /tmp/autohome/auto_sprinklers/
+    dest: "{{ app_folder }}/"
+    owner: root
+    group: root
+    mode: '0755'
+    remote_src: true
+
+- name: Ensure python3-venv is installed
+  ansible.builtin.apt:
+    name: python3-venv
+    state: present
+
+- name: Create virtual environment for Django
+  ansible.builtin.command: "python3 -m venv {{ app_django_environment }} "
+  args:
+    creates: "{{ app_django_environment }}"
+
+- name: Upgrade pip in virtualenv
+  ansible.builtin.pip:
+    name: pip
+    virtualenv: "{{ app_django_environment }}"
+    extra_args: --upgrade
+
+- name: Install Django in virtualenv
+  ansible.builtin.pip:
+    name: django
+    virtualenv: "{{ app_django_environment }}"
+
+- name: Install python-daemon in virtualenv
+  ansible.builtin.pip:
+    name: python-daemon
+    virtualenv: "{{ app_django_environment }}"
+
+- name: Install RPi.GPIO in virtualenv
+  ansible.builtin.pip:
+    name: pRPi.GPIO
+    virtualenv: "{{ app_django_environment }}"
+
+- name: Install requests in virtualenv
+  ansible.builtin.pip:
+    name: requests
+    virtualenv: "{{ app_django_environment }}"
+
+- name: Install Gunicorn in Django virtualenv
+  ansible.builtin.pip:
+    name: gunicorn
+    virtualenv: "{{ app_django_environment }}"
+
+- name: Configure Gunicorn systemd service
+  ansible.builtin.template:
+    src: gunicorn.service.j2
+    dest: /etc/systemd/system/gunicorn.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload systemd
+
+- name: Enable and start Gunicorn service
+  ansible.builtin.systemd:
+    name: gunicorn
+    enabled: true
+    state: started
+
+- name: Configure autohome service
+  ansible.builtin.template:
+    src: autohome.service.j2
+    dest: /etc/systemd/system/autohome.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload systemd
+
+- name: Start and enable autohome service
+  ansible.builtin.systemd:
+    name: autohome
+    state: started
+    enabled: true
