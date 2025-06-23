@@ -1,14 +1,15 @@
 from django.shortcuts import render
 from django.http import Http404
-#from django.urls import reverse
+# from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django.http import JsonResponse
-#from django.template import loader
-#from background_task import background
+# from django.template import loader
+# from background_task import background
 import logging
 import sys
 import os
-import RPi.GPIO as GPIO
+# import RPi.GPIO as GPIO
+import lgpio
 
 from .models import Sprinkler, Sensor, Scheduler, Code, Priority
 
@@ -187,51 +188,41 @@ def set_sprinkler_active(request, sprinkler_gpio):
 '''Manage input of the sensor given by first argument = gpio bcm port and mode in/out'''
 '''read the gpio at "port" number and inout is GPIO.IN or GPIO.OUT'''
 def read_gpio(port, inout):
-    if isinstance(port, int) == False:
+    if not isinstance(port, int):
         raise ValueError("port should be an integer argument!")
-    if inout == "GPIO.OUT":
-        GPIO.setwarnings(False)
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(port, GPIO.OUT)
 
-        i = GPIO.input(port)
-        if i == 0:
-            return "LOW"
+    h = lgpio.gpiochip_open(0)
+    try:
+        # For both IN and OUT, just read the pin state
+        value = lgpio.gpio_read(h, port)
+        if inout == "GPIO.OUT":
+            return "LOW" if value == 0 else "HIGH"
+        elif inout == "GPIO.IN":
+            return "HIGH" if value == 0 else "LOW"
         else:
-            return "HIGH"
-
-    elif inout == "GPIO.IN":
-        GPIO.setwarnings(False)
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(port, GPIO.IN)
-
-        i = GPIO.input(port)
-        if i == 0:
-            return "HIGH"
-        else:
-            return "LOW"
-
-    else:
-        raise ValueError("inout should be GPIO.IN or GPIO.OUT!")
+            raise ValueError("inout should be GPIO.IN or GPIO.OUT!")
+    finally:
+        lgpio.gpiochip_close(h)
 
 '''Manage output of the sensor given by first argument = gpio bcm out port and setstate (0 or 1)'''
 def write_gpio(outport, setstate):
-    if isinstance(outport, int) == False:
+    if not isinstance(outport, int):
         raise ValueError("port should be an integer argument!")
 
-    GPIO.setwarnings(False)
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(outport, GPIO.OUT)
-    if setstate == 0:
-        GPIO.output(outport, GPIO.LOW)
-        log('write_gpio port '+ str(outport) +' receive 0' )
-        return "LOW"
-    elif setstate == 1:
-        GPIO.output(outport, GPIO.HIGH)
-        log('write_gpio port '+ str(outport) +' receive 1' )
-        return "HIGH"
-    else:
-        raise ValueError("setstate should be 0 or 1!")
+    h = lgpio.gpiochip_open(0)
+    try:
+        if setstate == 0:
+            lgpio.gpio_write(h, outport, 0)
+            log('write_gpio port ' + str(outport) + ' receive 0')
+            return "LOW"
+        elif setstate == 1:
+            lgpio.gpio_write(h, outport, 1)
+            log('write_gpio port ' + str(outport) + ' receive 1')
+            return "HIGH"
+        else:
+            raise ValueError("setstate should be 0 or 1!")
+    finally:
+        lgpio.gpiochip_close(h)
 
 '''Lock gpio sets priority on port'''
 def lock_gpio(outport, setpriority):
