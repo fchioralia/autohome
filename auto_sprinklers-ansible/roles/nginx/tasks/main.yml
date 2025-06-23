@@ -1,0 +1,112 @@
+# This file is part of the auto_sprinklers-ansible project.
+- name: Install Nginx
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+
+- name: Install apache2-utils for htpasswd
+  ansible.builtin.apt:
+    name: apache2-utils
+    state: present
+
+- name: Create /etc/nginx/.htpasswd with user and password
+  community.general.htpasswd:
+    path: "{{ web_auth_file }}"
+    name: "{{ web_username }}"
+    password: "{{ web_password }}"
+    crypt_scheme: bcrypt
+    state: present
+    mode: '0640'
+  notify:
+    - Reload Nginx
+
+- name: Generate a private key for {{ server_hostname }}
+  community.crypto.openssl_privatekey:
+    path: /etc/nginx/ssl/{{ server_hostname }}.key
+    size: 2048
+    type: RSA
+    mode: '0600'
+  register: selfsigned_key
+
+- name: Generate a self-signed certificate for {{ server_hostname }}
+  community.crypto.x509_certificate:
+    path: /etc/nginx/ssl/{{ server_hostname }}.crt
+    privatekey_path: /etc/nginx/ssl/{{ server_hostname }}.key
+    provider: selfsigned
+    mode: '0644'
+  register: selfsigned_cert
+  notify:
+    - Reload Nginx
+
+- name: Deploy main nginx.conf
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload Nginx
+
+- name: Remove default Nginx configuration
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Copy Nginx configuration file
+  ansible.builtin.template:
+    src: auto_sprinklers.conf.j2
+    dest: /etc/nginx/sites-available/auto_sprinklers
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload Nginx
+
+- name: Enable Nginx configuration
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/auto_sprinklers
+    dest: /etc/nginx/sites-enabled/auto_sprinklers
+    state: link
+    force: true
+  notify:
+    - Reload Nginx
+
+- name: Install certbot and dependencies
+  ansible.builtin.apt:
+    name:
+      - certbot
+      - python3-certbot-nginx
+    state: present
+    update_cache: true
+
+- name: Ensure directory for SSL certificates exists
+  ansible.builtin.file:
+    path: /etc/nginx/ssl
+    state: directory
+    mode: '0755'
+
+
+# - name: Ensure Let's Encrypt account key exists
+#   community.crypto.openssl_privatekey:
+#     path: /etc/letsencrypt/account.key
+#     size: 4096
+#     type: RSA
+#     mode: '0600'
+
+# - name: Create certificate order
+#   community.crypto.acme_certificate_order_create:
+#     account_key_src: /etc/letsencrypt/account.key
+#     fullchain_dest: "{{ letsencrypt_cert }}"
+#     private_key_dest: "{{ letsencrypt_key }}"
+#     chain_dest: "{{ letsencrypt_chain }}"
+#     terms_agreed: true
+#     challenge: "http-01"
+#     http_challenge_webroot: "{{ web_root }}"
+#     domain_name: "{{ server_hostname }}"
+#     email: "{{ account_email }}"
+#     acme_directory: "/etc/letsencrypt/"
+#     acme_version: "v2"
+#   register: acme_result
+#   notify:
+#     - Reload Nginx

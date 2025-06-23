@@ -1,0 +1,19 @@
+[req]
+default_bits = 4096
+default_md = sha256
+prompt = no
+req_extensions = req_ext
+distinguished_name = dn
+
+[dn]
+C = RO
+L = BUC
+O = IT
+OU = Auto Sprinklers
+CN = {{ server_hostname }}
+
+[req_ext]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = {{ domain }}

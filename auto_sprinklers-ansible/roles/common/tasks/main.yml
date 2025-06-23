@@ -1,0 +1,40 @@
+- name: Update apt package manager
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install required system packages
+  ansible.builtin.apt:
+    name:
+      - git
+      - mc
+      - screen
+      - lsof
+      - tcpdump
+      - htop
+      - curl
+      - wget
+      - unzip
+      - whois
+    state: present
+
+- name: Install Python 3 and related packages
+  ansible.builtin.apt:
+    name:
+      - python3
+      - python3-pip
+      - python3-dev
+      - virtualenv
+      - python3-lockfile
+      - python3-daemon
+      - python3-passlib
+      - python3-virtualenv
+      - python3-django
+    state: present
+
+- name: Ensure /usr/bin/python is a symlink to /usr/bin/python3
+  ansible.builtin.file:
+    src: /usr/bin/python3
+    dest: /usr/bin/python
+    state: link
+    force: true
+  when: python_link.stat.islnk is not defined or python_link.stat.lnk_source != '/usr/bin/python3'

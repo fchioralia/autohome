@@ -1,0 +1,6 @@
+# Ignore inventory files (can contain sensitive data)
+inventory
+group_vars/*.yml
+host_vars/*.yml
+#ignore vscode settings
+.vscode

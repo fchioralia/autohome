@@ -1,0 +1,10 @@
+---
+- name: Configure Raspberry Pi for Auto Sprinklers
+  hosts: raspberry
+  become: true
+  gather_facts: false
+  roles:
+    # - common
+    - app
+    # - nginx
+    # - oauth2_proxy

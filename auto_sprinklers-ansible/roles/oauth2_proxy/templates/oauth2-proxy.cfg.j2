@@ -1,0 +1,11 @@
+provider = "{{ oauth2_provider }}"
+client_id = "{{ oauth2_client_id }}"
+client_secret = "{{ oauth2_client_secret }}"
+cookie_secret = "{{ oauth2_cookie_secret }}"
+cookie_refresh = "{{ oauth2_cookie_refresh | default('1h') }}"
+email_domains = [ "{{ oauth2_email_domain | default('*') }}" ]
+redirect_url = "https://{{ server_hostname }}/oauth2/callback"
+upstreams = [ "https://127.0.0.1:443/" ]
+https_address = "127.0.0.1:4443"
+tls_cert_file = "/etc/nginx/ssl/{{ server_hostname }}.crt"
+tls_key_file = "/etc/nginx/ssl/{{ server_hostname }}.key"
