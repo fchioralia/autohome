@@ -26,8 +26,19 @@ Deploy
 [remote]
 raspberry_pi ansible_host=192.168.1.1 ansible_user=pi ansible_ssh_private_key_file=~/.ssh/id_rsa
 ```
-2. Run the playbook using the following command:
+2. Create `group_var/raspberry.yml` file in this directory with the details of your remote Raspbian system, like:
+```
+server_hostname: example.com
+account_email: youremail@example.com
+web_username: pi_username
+web_password: pi_passwd
+web_auth_file: "/etc/nginx/.htpasswd"
+web_root: /var/www/html
+app_folder: "{{ web_root }}/auto_sprinklers"
+app_django_environment: "/root/.virtualenvs/django"
+
+```
+3. Run the playbook using the following command from this folder:
 ```
 ansible-playbook -i inventory playbook.yml
 ```
-3. Follow any additional instructions provided in the roles for specific configurations.
