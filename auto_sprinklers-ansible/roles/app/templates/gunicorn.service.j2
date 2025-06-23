@@ -6,7 +6,7 @@ After=network.target
 User=root
 Group=www-data
 WorkingDirectory={{ app_folder }}
-ExecStart={{ app_environment }}/bin/gunicorn --access-logfile - --workers 3 --bind unix:{{ app_folder }}/home.sock home.wsgi:application
+ExecStart={{ app_environment }}/bin/gunicorn --access-logfile - --workers 3 --bind unix:{{ app_gunicorn_socket }} home.wsgi:application
 
 [Install]
 WantedBy=multi-user.target

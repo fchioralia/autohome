@@ -38,7 +38,7 @@ server {
     # Protect all other locations with oauth2-proxy
     location / {
         include proxy_params;
-        proxy_pass http://unix:/var/www/html/auto_sprinklers/home.sock;
+        proxy_pass http://unix:{{ app_gunicorn_socket }};
     }
 #    location / {
 #        auth_request /oauth2/auth;
@@ -59,10 +59,10 @@ server {
 #        return 302 /oauth2/start?rd=$scheme://$host$request_uri;
 #    }
 
-#    location /static/ {
-#        root {{ web_root }}/auto_sprinklers/sprinklers/;
-#        auth_request off;
-#    }
+    location /static/ {
+        root {{ web_root }}/auto_sprinklers/sprinklers/;
+        auth_request off;
+    }
     location /.well-known/ {
          root {{ web_root }}/;
         auth_request off;

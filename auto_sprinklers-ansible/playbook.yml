@@ -6,5 +6,5 @@
   roles:
     # - common
     - app
-    # - nginx
+    - nginx
     # - oauth2_proxy
