@@ -4,7 +4,8 @@
   become: true
   gather_facts: false
   roles:
-    # - common
+    - common
     - app
-    - nginx
-    # - oauth2_proxy
+    - role: oauth2_proxy
+      when: oauth2_enable | bool
+    - webserver
