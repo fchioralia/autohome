@@ -1,48 +1,69 @@
 - name: Install dependencies
-  apt:
+  ansible.builtin.apt:
     name:
       - wget
       - tar
     state: present
 
 - name: Download oauth2-proxy
-  get_url:
+  ansible.builtin.get_url:
     url: "{{ oauth2_proxy_download_url }}"
     dest: /opt/oauth2-proxy.tar.gz
     mode: '0644'
 
 - name: Extract oauth2-proxy
-  unarchive:
+  ansible.builtin.unarchive:
     src: /opt/oauth2-proxy.tar.gz
     dest: /usr/local/bin/
-    remote_src: yes
+    remote_src: true
     extra_opts: [--strip-components=1]
     creates: /usr/local/bin/oauth2-proxy
 
 - name: Create config directory
-  file:
+  ansible.builtin.file:
     path: /etc/oauth2-proxy
     state: directory
     mode: '0755'
 
+- name: Create templates directory
+  ansible.builtin.file:
+    path: /etc/oauth2-proxy/custom-templates
+    state: directory
+    mode: '0755'
+
+- name: Deploy index.html template
+  ansible.builtin.template:
+    src: index.html.j2
+    dest: /etc/oauth2-proxy/custom-templates/index.html
+    mode: '0600'
+  notify:
+    - Reload oauth2-proxy
+
+- name: Deplo auth accounts file
+  ansible.builtin.template:
+    src: authenticated_emails.txt.j2
+    dest: /etc/oauth2-proxy/authenticated_emails.txt
+    mode: '0600'
+  notify:
+    - Reload oauth2-proxy
+
 - name: Deploy oauth2-proxy config
-  template:
+  ansible.builtin.template:
     src: oauth2-proxy.cfg.j2
     dest: /etc/oauth2-proxy/oauth2-proxy.cfg
     mode: '0600'
+  notify:
+    - Reload oauth2-proxy
 
 - name: Deploy oauth2-proxy systemd service
-  template:
+  ansible.builtin.template:
     src: oauth2-proxy.service.j2
     dest: /etc/systemd/system/oauth2-proxy.service
     mode: '0644'
 
-- name: Reload systemd
-  systemd:
-    daemon_reload: yes
-
 - name: Enable and start oauth2-proxy
-  systemd:
+  ansible.builtin.systemd:
     name: oauth2-proxy
-    enabled: yes
+    enabled: true
     state: started
+    daemon_reload: true

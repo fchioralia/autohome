@@ -1,0 +1,9 @@
+- name: Reload oauth2-proxy
+  ansible.builtin.service:
+    name: oauth2-proxy
+    state: reloaded
+
+- name: Restart oauth2-proxy
+  ansible.builtin.service:
+    name: oauth2-proxy
+    state: restarted
