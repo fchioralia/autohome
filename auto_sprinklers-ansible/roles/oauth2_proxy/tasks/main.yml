@@ -39,10 +39,10 @@
   notify:
     - Reload oauth2-proxy
 
-- name: Deplo auth accounts file
+- name: Deploy allowed accounts file
   ansible.builtin.template:
-    src: authenticated_emails.txt.j2
-    dest: /etc/oauth2-proxy/authenticated_emails.txt
+    src: authenticated-emails.txt.j2
+    dest: /etc/oauth2-proxy/authenticated-emails.txt
     mode: '0600'
   notify:
     - Reload oauth2-proxy
