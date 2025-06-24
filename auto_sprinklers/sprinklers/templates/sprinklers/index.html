@@ -20,7 +20,7 @@
     return hours + ":" + minutes ;
   }
 ///////////// csrf token for ajax /////////////////
-$.ajaxSetup({ 
+$.ajaxSetup({
      beforeSend: function(xhr, settings) {
          function getCookie(name) {
              var cookieValue = null;
@@ -41,7 +41,7 @@ $.ajaxSetup({
              // Only send the token to relative URLs i.e. locally.
              xhr.setRequestHeader("X-CSRFToken", getCookie('csrftoken'));
          }
-     } 
+     }
 });
 /////////////////////////////////////////////////
 </script>
@@ -70,8 +70,9 @@ $.ajaxSetup({
     <script type="text/javascript">
     $.ajax({
         type: "GET",
-        url: "/get_sprinkler_active/{{ sprinkler.sprinkler_gpio }}",
+        url: "/get_sprinkler_active/{{ sprinkler.sprinkler_gpio }}/",
         dataType: 'json',
+        cache: false,
         success: function (data) {
             if(data.sprinkler_active_state == 'LOW') {
                 $('#checkbox{{ sprinkler.sprinkler_gpio }}').prop('checked', true);
@@ -80,27 +81,27 @@ $.ajaxSetup({
                 $('#checkbox{{ sprinkler.sprinkler_gpio }}').prop('checked', false);
             }
         }
-    }); 
+    });
     </script>
     <tr>
       <td class="tg-0lax"><a href="{% url 'get_sprinkler_enabled' sprinkler.sprinkler_gpio %}">{{ sprinkler.sprinkler_name }}</a></td>
       <td class="tg-0lax">
         <div data-toggle="switchstate{{ sprinkler.sprinkler_gpio }}" >
-          <input 
-                data-off-title="Disabled" 
-                data-on-title="Enabled" 
-                type="checkbox" 
+          <input
+                data-off-title="Disabled"
+                data-on-title="Enabled"
+                type="checkbox"
                 name="{{ sprinkler.sprinkler_name }}"
                {% if sprinkler.sprinkler_enabled %} checked="checked"  {% endif %}
-           > 
+           >
         </div>
       </td>
       <td class="tg-0lax">
         <div data-toggle="switch{{ sprinkler.sprinkler_gpio }}" >
-          <input type="checkbox" 
+          <input type="checkbox"
             name="checkbox{{ sprinkler.sprinkler_gpio }}"  id="checkbox{{ sprinkler.sprinkler_gpio }}"
-            data-on-title="Running" data-off-title="Stopped"   data-on-color="success" data-off-color="warning"          
-          > 
+            data-on-title="Running" data-off-title="Stopped"   data-on-color="success" data-off-color="warning"
+          >
         </div>
       </td>
       <td class="tg-0lax" style="vertical-align:middle;">
@@ -136,7 +137,7 @@ $.ajaxSetup({
             });
     slideTime{{ sprinkler.sprinkler_gpio }}();
         },
-        error: function (xhr, status, e) {  
+        error: function (xhr, status, e) {
             $("#slider-range{{ sprinkler.sprinkler_gpio }}").slider({
                 range: true,
                 step:5,
@@ -159,7 +160,7 @@ $.ajaxSetup({
 
             $.ajax({
                     type: "POST",
-		    data: { scheduler_start_time: val0, scheduler_stop_time: val1},
+                    data: { scheduler_start_time: val0, scheduler_stop_time: val1, csrfmiddlewaretoken: '{{ csrf_token }}'},
                     url: "/set_scheduler_data/{{ sprinkler.sprinkler_gpio }}",
                     success: function () { }
                 });
@@ -292,8 +293,8 @@ font-size: 100%; "
       <td class="tg-0lax">
         <div data-toggle="service_enabled_autohome" >
           <input 
-                data-off-title="Disabled" 
-                data-on-title="Enabled" 
+                data-off-title="Disabled"
+                data-on-title="Enabled"
                 type="checkbox" 
                 name="service_enabled_autohome"
                {% if service_enabled_autohome %} checked="checked"  {% endif %}
@@ -343,7 +344,7 @@ font-size: 100%; "
 <script type="text/javascript">
 /* uncomment to refresh
     setTimeout(function(){
-       window.location.reload(1);
-    }, 5000);
-*/
+       window.location.reload();
+    }, 10000);
+/*/
 </script>

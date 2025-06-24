@@ -17,7 +17,7 @@
 <script type="text/javascript">
     $.ajax({
         type: "GET",
-        url: "/get_sprinkler_active/{{ sprinkler.sprinkler_gpio }}",
+        url: "/get_sprinkler_active/{{ sprinkler.sprinkler_gpio }}/",
         dataType: 'json',
         success: function (data) {
             if(data.sprinkler_active_state == 'LOW') {

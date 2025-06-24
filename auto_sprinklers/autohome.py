@@ -2,7 +2,6 @@
 '''daemon for controling home 
 gets data from sensors/schedule/etc.. and control the GPIOs'''
 import time
-import syslog
 from datetime import datetime
 import argparse
 import logging
@@ -12,7 +11,7 @@ import daemon
 from daemon import pidfile
 import signal
 import threading
-import lgpio
+import RPi.GPIO as GPIO
 import django
 import requests
 import json
@@ -38,7 +37,7 @@ def check_weather():
     fileTIMEnow=time.time()
     fileTIMEmodified=os.path.getmtime(outjson)
 
-    if ( fileTIMEnow-fileTIMEmodified > 62400 ) or os.stat(outjson).st_size == 0:
+    if ( fileTIMEnow-fileTIMEmodified > 86000 ) or os.stat(outjson).st_size == 0:
         #download only if older then 24h or greater than 0
         r = requests.get(url)
         jsonu = r.json()
@@ -49,11 +48,11 @@ def check_weather():
             jsonu = json.load(json_file)
 
     for list in jsonu['list']:
-        if list['main']['temp_min'] < 277.15 :
-            on = 1
         for weather in list['weather']:
             if weather['main'] == "Rain" :
                 on = 1
+        if list['main']['temp_min'] < 277.15 :
+            on = 0
     return on
 
 def set_gpio(sprinkler, setstate, priority_name, logger):
@@ -101,13 +100,13 @@ def set_gpio(sprinkler, setstate, priority_name, logger):
     else:
         raise ValueError("set_gpio setstate variable should be 0 or 1!")
 
-class SchedulerThread: 
+class SchedulerThread:
     '''Scheduler thread to run sprinklers in the given time , logger is the log file'''
 
-    def __init__(self): 
+    def __init__(self):
         self._running = True
-      
-    def terminate(self): 
+
+    def terminate(self):
         self._running = False
 
     def run(self, logger):
@@ -115,12 +114,12 @@ class SchedulerThread:
         while self._running:
             rain = check_weather()
             logger.debug('Scheduler check for rain. result= %d', rain)
-#            rain = 0
+            rain = 0
 #            logger.info('in loop scheduler')
             if rain == 0:
                 logger.debug('Scheduler no rain detected. Check scheduler.')
                 list_sprinklers = Sprinkler.objects.order_by('sprinkler_gpio')
-                for sprinkler in list_sprinklers: 
+                for sprinkler in list_sprinklers:
                     logger.debug('Check sprinkler %s', sprinkler.sprinkler_name)
                     now_hm = int(datetime.now().strftime('%H'))*60+int(datetime.now().strftime('%M'))
                     sched = Scheduler.objects.get(scheduler_sprinkler_gpio__exact=sprinkler.sprinkler_gpio)
@@ -146,14 +145,14 @@ class SchedulerThread:
 
             logger.debug('End Scheduler loop and wait')
             time.sleep(10)
-        
-class SensorsThread: 
+
+class SensorsThread:
     '''Sensors thread to run sprinklers when motion detected, logger is the log file'''
 
-    def __init__(self): 
+    def __init__(self):
         self._running = True
-      
-    def terminate(self): 
+
+    def terminate(self):
         self._running = False
 
     def run(self, logger):
@@ -210,26 +209,20 @@ def run_home(logf):
     s_schedule = SchedulerThread()
     t_schedule = threading.Thread(target=s_schedule.run, args=(logger,))
     try:
-        t_schedule.start()  
+        t_schedule.start()
     except (KeyboardInterrupt, SystemExit):
         s_schedule.terminate()
         t_schedule.join()
 
-    s_sensors = SensorsThread()
-    t_sensors = threading.Thread(target=s_sensors.run, args=(logger,))
-    try:
-        t_sensors.start()  
-    except (KeyboardInterrupt, SystemExit):
-        s_sensors.terminate()
-        t_sensors.join()
+#    s_sensors = SensorsThread()
+#    t_sensors = threading.Thread(target=s_sensors.run, args=(logger,))
+#    try:
+#        t_sensors.start()
+#    except (KeyboardInterrupt, SystemExit):
+#        s_sensors.terminate()
+#        t_sensors.join()
 
 def shutdown(signum, frame):  # signum and frame are mandatory
-    #stop all sprinklers before stop
-    syslog.syslog("STOP all sprinklers")
-    list_sprinklers = Sprinkler.objects.order_by('sprinkler_gpio')
-    for sprinkler in list_sprinklers:
-        write_gpio(sprinkler.sprinkler_gpio, 1)
-        lock_gpio(sprinkler.sprinkler_gpio, 0)
     sys.exit(0)
 
 def start_daemon(pidf, logf):
