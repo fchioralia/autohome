@@ -3,14 +3,14 @@
 - name: Clone the full repository to a temp folder
   ansible.builtin.git:
     repo: 'https://github.com/fchioralia/autohome.git'
-    dest: /tmp/autohome
-    version: 'master'
+    dest: "{{ app_repo_destination }}"
+    version: "master"
     force: true
 
 - name: Synchronize only the auto_sprinklers folder to the app folder (delete extra files)
   ansible.posix.synchronize:
-    src: /tmp/autohome/auto_sprinklers/
-    dest: "{{ app_folder }}/"
+    src: "{{ app_repo_destination }}/auto_sprinklers/"
+    dest: "{{ app_folder }}"
     delete: true
     recursive: true
     mode: push

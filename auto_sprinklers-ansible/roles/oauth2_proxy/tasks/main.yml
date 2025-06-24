@@ -8,12 +8,12 @@
 - name: Download oauth2-proxy
   get_url:
     url: "{{ oauth2_proxy_download_url }}"
-    dest: /tmp/oauth2-proxy.tar.gz
+    dest: /opt/oauth2-proxy.tar.gz
     mode: '0644'
 
 - name: Extract oauth2-proxy
   unarchive:
-    src: /tmp/oauth2-proxy.tar.gz
+    src: /opt/oauth2-proxy.tar.gz
     dest: /usr/local/bin/
     remote_src: yes
     extra_opts: [--strip-components=1]
