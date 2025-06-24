@@ -4,7 +4,8 @@ After=multi-user.target
 
 [Service]
 Type=idle
-ExecStart=/usr/bin/python3 {{ app_folder }}/autohome.py
+User=root
+ExecStart={{ app_environment }}/bin/python3 {{ app_folder }}/autohome.py
 
 [Install]
 WantedBy=multi-user.target
