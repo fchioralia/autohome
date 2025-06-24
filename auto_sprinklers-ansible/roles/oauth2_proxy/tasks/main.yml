@@ -5,6 +5,20 @@
       - tar
     state: present
 
+- name: Download latest oauth2-proxy release info
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/oauth2-proxy/oauth2-proxy/releases/latest
+    return_content: true
+  register: oauth2_proxy_release
+  check_mode: false
+
+- name: Set oauth2-proxy download url
+  ansible.builtin.set_fact:
+    oauth2_proxy_download_url: >-
+      {{ ((oauth2_proxy_release.content | from_json).assets
+         | selectattr('name', 'search', 'linux-' ~ oauth2_cpu_version ~ '.tar.gz')
+         | list)[0].browser_download_url }}
+
 - name: Download oauth2-proxy
   ansible.builtin.get_url:
     url: "{{ oauth2_proxy_download_url }}"

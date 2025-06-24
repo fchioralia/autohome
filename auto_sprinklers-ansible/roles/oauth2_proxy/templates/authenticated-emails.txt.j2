@@ -1,1 +1,3 @@
-{{ account_email }}
+{% for email in oauth2_allowed_emails %}
+{{ email }}
+{% endfor %}
