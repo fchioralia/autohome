@@ -70,7 +70,7 @@ def get_scheduler_data(request, sprinkler_gpio):
     try:
         scheduler = Scheduler.objects.get(scheduler_sprinkler_gpio__exact=sprinkler_gpio)
     except Scheduler.DoesNotExist:
-        raise Http404("No sprinkler found with gpio= %d!" % (scheduler_sprinkler_gpio))
+        raise Http404("No sprinkler found with gpio= %d!" % (sprinkler_gpio))
     return JsonResponse({"scheduler_sprinkler_gpio": scheduler.scheduler_sprinkler_gpio,
         "scheduler_start_time": scheduler.scheduler_start_time,
         "scheduler_stop_time": scheduler.scheduler_stop_time}, status=200)
