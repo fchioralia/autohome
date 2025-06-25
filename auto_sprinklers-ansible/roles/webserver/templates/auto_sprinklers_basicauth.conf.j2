@@ -1,0 +1,42 @@
+server {
+    listen 80 default_server;
+    server_name {{ server_hostname }};
+
+    location /.well-known/ {
+        root {{ web_root }}/;
+        auth_basic off;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+
+}
+
+server {
+    listen              443 ssl;
+    server_name {{ server_hostname }};
+
+    ssl_certificate     /etc/nginx/ssl/{{ server_hostname }}.crt;
+    ssl_certificate_key /etc/nginx/ssl/{{ server_hostname }}.key;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+
+    auth_basic           "Auth required";
+    auth_basic_user_file {{ web_auth_file }};
+   
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:{{ app_gunicorn_socket }};
+    }
+
+    location /static/ {
+        root {{ web_root }}/auto_sprinklers/sprinklers/static/;
+        auth_request off;
+    }
+    location /.well-known/ {
+        root {{ web_root }}/;
+        auth_request off;
+    }
+    location = /favicon.ico { access_log off; log_not_found off; auth_request off; }
+}

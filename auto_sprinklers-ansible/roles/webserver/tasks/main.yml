@@ -53,9 +53,14 @@
     path: /etc/nginx/sites-enabled/default
     state: absent
 
+- name: Set Nginx config template source based on oauth2_enable
+  ansible.builtin.set_fact:
+    nginx_conf_template: >-
+      {{ 'auto_sprinklers_oauth.conf.j2' if oauth2_enable | bool else 'auto_sprinklers_basicauth.conf.j2' }}
+
 - name: Copy Nginx configuration file
   ansible.builtin.template:
-    src: auto_sprinklers.conf.j2
+    src: "{{ nginx_conf_template }}"
     dest: /etc/nginx/sites-available/auto_sprinklers
     owner: root
     group: root
