@@ -5,6 +5,7 @@ server {
     location /.well-known/ {
         root {{ web_root }}/;
         auth_basic off;
+        auth_request off;
     }
 
     location / {
@@ -59,7 +60,7 @@ server {
     }
 
     location /static/ {
-        root {{ web_root }}/auto_sprinklers/sprinklers/static/;
+        alias {{ web_root }}/auto_sprinklers/sprinklers/static/;
         auth_request off;
     }
     location /.well-known/ {

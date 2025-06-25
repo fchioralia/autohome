@@ -1,24 +1,30 @@
-# This file is part of the auto_sprinklers-ansible project.
-- name: Install Nginx
-  ansible.builtin.apt:
-    name: nginx
-    state: present
+# # This file is part of the auto_sprinklers-ansible project.
+# - name: Install Nginx
+#   ansible.builtin.apt:
+#     name: nginx
+#     state: present
 
-- name: Install apache2-utils for htpasswd
-  ansible.builtin.apt:
-    name: apache2-utils
-    state: present
+# - name: Install apache2-utils for htpasswd
+#   ansible.builtin.apt:
+#     name: apache2-utils
+#     state: present
 
-- name: Create /etc/nginx/.htpasswd with user and password
-  community.general.htpasswd:
-    path: "{{ web_auth_file }}"
-    name: "{{ web_username }}"
-    password: "{{ web_password }}"
-    crypt_scheme: bcrypt
-    state: present
-    mode: '0640'
-  notify:
-    - Reload Nginx
+# - name: Create /etc/nginx/.htpasswd with user and password
+#   community.general.htpasswd:
+#     path: "{{ web_auth_file }}"
+#     name: "{{ web_username }}"
+#     password: "{{ web_password }}"
+#     crypt_scheme: bcrypt
+#     state: present
+#     mode: '0640'
+#   notify:
+#     - Reload Nginx
+
+# - name: Ensure directory for SSL certificates exists
+#   ansible.builtin.file:
+#     path: /etc/nginx/ssl
+#     state: directory
+#     mode: '0755'
 
 - name: Generate a private key for {{ server_hostname }}
   community.crypto.openssl_privatekey:
@@ -38,80 +44,100 @@
   notify:
     - Reload Nginx
 
-- name: Deploy main nginx.conf
-  ansible.builtin.template:
-    src: nginx.conf.j2
-    dest: /etc/nginx/nginx.conf
-    owner: root
-    group: root
-    mode: '0644'
-  notify:
-    - Reload Nginx
+# - name: Deploy main nginx.conf
+#   ansible.builtin.template:
+#     src: nginx.conf.j2
+#     dest: /etc/nginx/nginx.conf
+#     owner: root
+#     group: root
+#     mode: '0644'
+#   notify:
+#     - Reload Nginx
 
-- name: Remove default Nginx configuration
-  ansible.builtin.file:
-    path: /etc/nginx/sites-enabled/default
-    state: absent
+# - name: Remove default Nginx configuration
+#   ansible.builtin.file:
+#     path: /etc/nginx/sites-enabled/default
+#     state: absent
 
-- name: Set Nginx config template source based on oauth2_enable
-  ansible.builtin.set_fact:
-    nginx_conf_template: >-
-      {{ 'auto_sprinklers_oauth.conf.j2' if oauth2_enable | bool else 'auto_sprinklers_basicauth.conf.j2' }}
+# - name: Set Nginx config template source based on oauth2_enable
+#   ansible.builtin.set_fact:
+#     nginx_conf_template: >-
+#       {{ 'auto_sprinklers_oauth.conf.j2' if oauth2_enable | bool else 'auto_sprinklers_basicauth.conf.j2' }}
 
-- name: Copy Nginx configuration file
-  ansible.builtin.template:
-    src: "{{ nginx_conf_template }}"
-    dest: /etc/nginx/sites-available/auto_sprinklers
-    owner: root
-    group: root
-    mode: '0644'
-  notify:
-    - Reload Nginx
+# - name: Copy Nginx configuration file
+#   ansible.builtin.template:
+#     src: "{{ nginx_conf_template }}"
+#     dest: /etc/nginx/sites-available/auto_sprinklers
+#     owner: root
+#     group: root
+#     mode: '0644'
+#   notify:
+#     - Reload Nginx
 
-- name: Enable Nginx configuration
-  ansible.builtin.file:
-    src: /etc/nginx/sites-available/auto_sprinklers
-    dest: /etc/nginx/sites-enabled/auto_sprinklers
-    state: link
-    force: true
-  notify:
-    - Reload Nginx
+# - name: Enable Nginx configuration
+#   ansible.builtin.file:
+#     src: /etc/nginx/sites-available/auto_sprinklers
+#     dest: /etc/nginx/sites-enabled/auto_sprinklers
+#     state: link
+#     force: true
+#   notify:
+#     - Reload Nginx
 
 - name: Install certbot and dependencies
   ansible.builtin.apt:
     name:
       - certbot
+      - python3-certbot
       - python3-certbot-nginx
     state: present
     update_cache: true
 
-- name: Ensure directory for SSL certificates exists
+- name: Obtain Let's Encrypt certificate with certbot
+  ansible.builtin.command: >
+    certbot certonly --webroot
+    -w {{ web_root }}
+    -d {{ server_hostname }}
+    -m {{ account_email }}
+    --cert-name {{ server_hostname }}
+    --agree-tos
+    --non-interactive
+  args:
+    creates: "/etc/letsencrypt/live/{{ server_hostname }}/fullchain.pem"
+  register: certbot_result
+
+- name: Ensure certbot renew runs daily
+  ansible.builtin.cron:
+    name: "Renew Let's Encrypt certificates"
+    user: root
+    minute: 0
+    hour: 3
+    job: "certbot renew --quiet --deploy-hook 'systemctl reload nginx'"
+
+- name: Check if Let's Encrypt certificate exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ server_hostname }}/fullchain.pem"
+  register: le_cert
+- name: Check if Let's Encrypt key exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ server_hostname }}/privkey.pem"
+  register: le_key
+
+- name: Force symlink for Nginx SSL crt to Let's Encrypt crt
   ansible.builtin.file:
-    path: /etc/nginx/ssl
-    state: directory
-    mode: '0755'
+    src: "/etc/letsencrypt/live/{{ server_hostname }}/fullchain.pem"
+    dest: "/etc/nginx/ssl/{{ server_hostname }}.crt"
+    state: link
+    force: true
+  when: le_cert.stat.exists
+  notify:
+    - Reload Nginx
 
-
-# - name: Ensure Let's Encrypt account key exists
-#   community.crypto.openssl_privatekey:
-#     path: /etc/letsencrypt/account.key
-#     size: 4096
-#     type: RSA
-#     mode: '0600'
-
-# - name: Create certificate order
-#   community.crypto.acme_certificate_order_create:
-#     account_key_src: /etc/letsencrypt/account.key
-#     fullchain_dest: "{{ letsencrypt_cert }}"
-#     private_key_dest: "{{ letsencrypt_key }}"
-#     chain_dest: "{{ letsencrypt_chain }}"
-#     terms_agreed: true
-#     challenge: "http-01"
-#     http_challenge_webroot: "{{ web_root }}"
-#     domain_name: "{{ server_hostname }}"
-#     email: "{{ account_email }}"
-#     acme_directory: "/etc/letsencrypt/"
-#     acme_version: "v2"
-#   register: acme_result
-#   notify:
-#     - Reload Nginx
+- name: Force symlink for Nginx SSL private key to Let's Encrypt private key
+  ansible.builtin.file:
+    src: "/etc/letsencrypt/live/{{ server_hostname }}/privkey.pem"
+    dest: "/etc/nginx/ssl/{{ server_hostname }}.key"
+    state: link
+    force: true
+  when: le_key.stat.exists
+  notify:
+    - Reload Nginx

@@ -31,12 +31,12 @@ server {
     }
 
     location /static/ {
-        root {{ web_root }}/auto_sprinklers/sprinklers/static/;
-        auth_request off;
+        alias {{ web_root }}/auto_sprinklers/sprinklers/static/;
+        auth_basic off;
     }
     location /.well-known/ {
         root {{ web_root }}/;
-        auth_request off;
+        auth_basic off;
     }
-    location = /favicon.ico { access_log off; log_not_found off; auth_request off; }
+    location = /favicon.ico { access_log off; log_not_found off; auth_basic off; }
 }
